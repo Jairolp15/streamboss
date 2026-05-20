@@ -1,0 +1,32 @@
+# Entornos virtuales
+streamboss-backend/venv/
+streamboss-backend/.venv/
+venv/
+.venv/
+
+# Bases de datos y archivos locales
+streamboss-backend/streamboss.db
+streamboss-backend/.env
+streamboss-frontend/.env.local
+streamboss-frontend/dist/
+
+# Dependencias de NodeJS
+streamboss-frontend/node_modules/
+node_modules/
+
+# IDEs y editores
+.idea/
+.vscode/
+*.suo
+*.ntvs*
+*.njsproj
+*.sln
+*.sw?
+
+# Archivos temporales de Python
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
+.pytest_cache/
+.mypy_cache/
