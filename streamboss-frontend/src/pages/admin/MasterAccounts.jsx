@@ -7,7 +7,7 @@ import ExpiryBadge from "../../components/ui/ExpiryBadge";
 import toast from "react-hot-toast";
 
 const EMPTY = { platform_id: "", email: "", password_encrypted: "", purchase_date: "", expiry_date: "", total_profiles: 5, notes: "" };
-const EMPTY_EDIT = { email: "", password_encrypted: "" };
+const EMPTY_EDIT = { email: "", password_encrypted: "", expiry_date: "" };
 
 export default function MasterAccounts() {
   const [accounts, setAccounts] = useState([]);
@@ -63,7 +63,11 @@ export default function MasterAccounts() {
 
   const handleOpenEdit = (account) => {
     setEditTarget(account);
-    setEditForm({ email: account.email, password_encrypted: account.password_encrypted || "" });
+    setEditForm({
+      email: account.email,
+      password_encrypted: account.password_encrypted || "",
+      expiry_date: account.expiry_date || "",
+    });
     setShowEditModal(true);
   };
 
@@ -73,10 +77,12 @@ export default function MasterAccounts() {
     if (!editForm.password_encrypted.trim()) { toast.error("La contraseña es obligatoria"); return; }
     setEditSaving(true);
     try {
-      await updateMasterAccount(editTarget.id, {
+      const payload = {
         email: editForm.email.trim(),
         password_encrypted: editForm.password_encrypted.trim(),
-      });
+      };
+      if (editForm.expiry_date) payload.expiry_date = editForm.expiry_date;
+      await updateMasterAccount(editTarget.id, payload);
       toast.success("Credenciales actualizadas correctamente");
       setShowEditModal(false);
       load();
@@ -218,6 +224,18 @@ export default function MasterAccounts() {
                     placeholder="Nueva contraseña"
                     required
                   />
+                </div>
+                <div className="form-group">
+                  <label className="form-label">Nueva fecha de vencimiento (opcional)</label>
+                  <input
+                    className="form-control"
+                    type="date"
+                    value={editForm.expiry_date}
+                    onChange={(e) => setEditForm({ ...editForm, expiry_date: e.target.value })}
+                  />
+                  <p style={{ color: "var(--text-muted)", fontSize: "0.75rem", marginTop: "0.35rem" }}>
+                    Renueva la fecha sin perder los suscriptores asignados.
+                  </p>
                 </div>
               </div>
               <div className="modal-footer" style={{ marginTop: "1.25rem" }}>

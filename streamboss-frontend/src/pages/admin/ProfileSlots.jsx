@@ -23,8 +23,8 @@ export default function ProfileSlots() {
     e.preventDefault();
     if (!editingProfile) return;
     
-    if (pinForm !== "" && pinForm.length !== 4) {
-      setError("El PIN debe tener exactamente 4 dígitos.");
+    if (pinForm !== "" && (pinForm.length < 4 || pinForm.length > 6)) {
+      setError("El PIN debe tener entre 4 y 6 dígitos.");
       return;
     }
 
@@ -87,25 +87,25 @@ export default function ProfileSlots() {
             </div>
             <form onSubmit={handleSavePin}>
               <div className="form-group" style={{ marginBottom: "1.5rem" }}>
-                <label className="form-label" htmlFor="pin-input">PIN de 4 dígitos (Opcional)</label>
+                <label className="form-label" htmlFor="pin-input">PIN de 4 a 6 dígitos (Opcional)</label>
                 <input
                   id="pin-input"
                   type="text"
-                  pattern="\d{4}"
-                  maxLength={4}
-                  placeholder="Ej. 1234 (vacío para eliminar)"
+                  pattern="\d{4,6}"
+                  maxLength={6}
+                  placeholder="Ej. 1234 o 12345 o 123456 (vacío para eliminar)"
                   className="form-control"
                   value={pinForm}
                   onChange={(e) => {
                     const val = e.target.value;
-                    if (val === "" || (/^\d+$/.test(val) && val.length <= 4)) {
+                    if (val === "" || (/^\d+$/.test(val) && val.length <= 6)) {
                       setPinForm(val);
                     }
                   }}
                   autoFocus
                 />
                 <p style={{ color: "var(--text-muted)", fontSize: "0.75rem", marginTop: "0.5rem", lineHeight: "1.4" }}>
-                  Ingresa un código de 4 dígitos. Déjalo en blanco para eliminar el PIN actual del perfil.
+                  Ingresa un código de 4, 5 o 6 dígitos. Déjalo en blanco para eliminar el PIN actual del perfil.
                 </p>
               </div>
 

@@ -1,4 +1,4 @@
-from pydantic import BaseModel
+from pydantic import BaseModel, field_validator
 from typing import Optional, List
 from datetime import date, datetime
 from app.schemas.platform import PlatformResponse
@@ -15,6 +15,14 @@ class ProfileSlot(BaseModel):
 
 class ProfileUpdate(BaseModel):
     pin: Optional[str] = None
+
+    @field_validator("pin")
+    @classmethod
+    def validate_pin(cls, v):
+        if v is not None and v != "":
+            if not v.isdigit() or not (4 <= len(v) <= 6):
+                raise ValueError("El PIN debe ser numérico y tener entre 4 y 6 dígitos")
+        return v
 
 
 class MasterAccountBase(BaseModel):
