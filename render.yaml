@@ -1,0 +1,15 @@
+services:
+  - type: web
+    name: streamboss-web
+    runtime: static
+    rootDir: streamboss-frontend
+    buildCommand: npm install && npm run build
+    staticPublishPath: dist
+    pullRequestPreviewsEnabled: false
+    routes:
+      - type: rewrite
+        source: /*
+        destination: /index.html
+    envVars:
+      - key: VITE_API_BASE_URL
+        value: https://streamboss-api.onrender.com/api/v1
