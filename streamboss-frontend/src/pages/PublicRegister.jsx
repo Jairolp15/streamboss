@@ -1,12 +1,18 @@
-import { useEffect, useState } from "react";
+import { useEffect, useState, useCallback } from "react";
 import { getPublicPlatforms, publicSubmitRequest } from "../api/public";
 import toast from "react-hot-toast";
+
+const SUPPORT_PHONE = "584261338316";
+const MAX_RETRIES = 6;       // intentos máximos
+const RETRY_DELAY_MS = 8000; // 8 segundos entre intentos
 
 export default function PublicRegister() {
   const [platforms, setPlatforms] = useState([]);
   const [loading, setLoading] = useState(true);
+  const [loadError, setLoadError] = useState(false);
+  const [retryCount, setRetryCount] = useState(0);
   const [saving, setSaving] = useState(false);
-  const [step, setStep] = useState(1); // 1 = Register Form, 2 = Credentials Screen
+  const [step, setStep] = useState(1); // 1 = Formulario, 2 = Confirmación
 
   // Form inputs
   const [clientName, setClientName] = useState("");
@@ -14,21 +20,30 @@ export default function PublicRegister() {
   const [deviceType, setDeviceType] = useState("phone");
   const [selectedPlatform, setSelectedPlatform] = useState("");
 
-  // Result credentials
-  const [regResult, setRegResult] = useState(null);
+  const loadPlatforms = useCallback((attempt = 0) => {
+    setLoading(true);
+    setLoadError(false);
+    setRetryCount(attempt);
 
-  useEffect(() => {
     getPublicPlatforms()
       .then(({ data }) => {
         setPlatforms(data);
+        setLoading(false);
       })
       .catch(() => {
-        toast.error("Error al cargar las plataformas. Por favor, recarga la página.");
-      })
-      .finally(() => {
-        setLoading(false);
+        if (attempt < MAX_RETRIES) {
+          // Reintenta automáticamente mientras el servidor de Render despierta
+          setTimeout(() => loadPlatforms(attempt + 1), RETRY_DELAY_MS);
+        } else {
+          setLoading(false);
+          setLoadError(true);
+        }
       });
   }, []);
+
+  useEffect(() => {
+    loadPlatforms(0);
+  }, [loadPlatforms]);
 
   const handleRegister = async (e) => {
     e.preventDefault();
@@ -43,44 +58,146 @@ export default function PublicRegister() {
 
     setSaving(true);
     try {
-      const { data } = await publicSubmitRequest({
+      await publicSubmitRequest({
         full_name: clientName,
         phone_whatsapp: clientPhone || null,
         device_type: deviceType,
         platform_id: parseInt(selectedPlatform),
       });
 
-      setRegResult(data);
       setStep(2);
       toast.success("¡Solicitud enviada con éxito!");
     } catch (err) {
-      toast.error(err.response?.data?.detail || "Error al enviar la solicitud.");
+      toast.error(err.response?.data?.detail || "Error al enviar la solicitud. Intenta de nuevo.");
     } finally {
       setSaving(false);
     }
   };
 
-  const handleCopyToClipboard = (text, label) => {
-    navigator.clipboard.writeText(text);
-    toast.success(`${label} copiado al portapapeles`);
-  };
-
   const handleWhatsAppShare = () => {
-    const text = `Hola, he enviado una solicitud para obtener una pantalla a nombre de *${clientName}*. Quedo a la espera de mis credenciales.`;
+    const text = `Hola, acabo de registrarme para obtener una pantalla de streaming a nombre de *${clientName}*. Quedo a la espera de mis credenciales de acceso. 🙏`;
     const encodedText = encodeURIComponent(text);
-    // Replace this with your actual support number
-    const supportPhone = "1234567890"; 
-    window.open(`https://wa.me/${supportPhone}?text=${encodedText}`, "_blank", "noopener,noreferrer");
+    window.open(`https://wa.me/${SUPPORT_PHONE}?text=${encodedText}`, "_blank", "noopener,noreferrer");
   };
 
+  // ── Pantalla de carga / despertando servidor ──
   if (loading) {
+    const isWakingUp = retryCount > 0;
     return (
-      <div className="spinner-container" style={{ background: "var(--bg-main)", minHeight: "100vh" }}>
-        <div className="spinner" />
+      <div
+        style={{
+          background: "radial-gradient(circle at top, #1c133a 0%, var(--bg-main) 100%)",
+          minHeight: "100vh",
+          display: "flex",
+          alignItems: "center",
+          justifyContent: "center",
+          padding: "2rem 1rem",
+        }}
+      >
+        <div
+          style={{
+            textAlign: "center",
+            display: "flex",
+            flexDirection: "column",
+            alignItems: "center",
+            gap: "1.25rem",
+            maxWidth: "360px",
+          }}
+        >
+          <div className="spinner" style={{ width: "52px", height: "52px" }} />
+
+          {isWakingUp ? (
+            <>
+              <h3 style={{ color: "#fff", margin: 0, fontSize: "1.1rem", fontWeight: 700 }}>
+                ☕ Iniciando el servidor...
+              </h3>
+              <p style={{ color: "var(--text-secondary)", fontSize: "0.875rem", margin: 0, lineHeight: 1.6 }}>
+                El servidor estaba en reposo y está despertando.
+                <br />
+                <strong style={{ color: "var(--accent-light)" }}>Esto tarda ~30 segundos la primera vez.</strong>
+                <br />
+                Por favor espera, no cierres la página. ✅
+              </p>
+              <div
+                style={{
+                  background: "rgba(124, 77, 255, 0.12)",
+                  border: "1px solid rgba(124, 77, 255, 0.3)",
+                  borderRadius: "0.75rem",
+                  padding: "0.6rem 1rem",
+                  fontSize: "0.8rem",
+                  color: "var(--text-muted)",
+                }}
+              >
+                Intento {retryCount} de {MAX_RETRIES}...
+              </div>
+            </>
+          ) : (
+            <p style={{ color: "var(--text-secondary)", fontSize: "0.9rem", margin: 0 }}>
+              Cargando formulario de registro...
+            </p>
+          )}
+        </div>
       </div>
     );
   }
 
+  // ── Error fatal (no pudo cargar después de todos los intentos) ──
+  if (loadError) {
+    return (
+      <div
+        style={{
+          background: "radial-gradient(circle at top, #1c133a 0%, var(--bg-main) 100%)",
+          minHeight: "100vh",
+          display: "flex",
+          alignItems: "center",
+          justifyContent: "center",
+          padding: "2rem 1rem",
+        }}
+      >
+        <div
+          className="card animate-fade"
+          style={{
+            maxWidth: "400px",
+            width: "100%",
+            padding: "2.5rem 2rem",
+            background: "rgba(30, 24, 54, 0.55)",
+            backdropFilter: "blur(16px)",
+            border: "1px solid rgba(239, 68, 68, 0.3)",
+            borderRadius: "1.25rem",
+            textAlign: "center",
+          }}
+        >
+          <div style={{ fontSize: "3rem", marginBottom: "1rem" }}>😔</div>
+          <h2 style={{ color: "#fff", fontWeight: 800, marginBottom: "0.5rem" }}>
+            Servicio no disponible
+          </h2>
+          <p style={{ color: "var(--text-secondary)", fontSize: "0.875rem", marginBottom: "1.5rem", lineHeight: 1.6 }}>
+            No pudimos conectar con el servidor. Por favor intenta de nuevo en unos minutos.
+          </p>
+          <button
+            className="btn btn-primary"
+            onClick={() => loadPlatforms(0)}
+            style={{ width: "100%", justifyContent: "center", padding: "0.85rem", fontWeight: 700 }}
+          >
+            🔄 Reintentar
+          </button>
+          <p style={{ color: "var(--text-muted)", fontSize: "0.8rem", marginTop: "1rem" }}>
+            ¿Sigues con problemas?{" "}
+            <a
+              href={`https://wa.me/${SUPPORT_PHONE}`}
+              target="_blank"
+              rel="noopener noreferrer"
+              style={{ color: "var(--accent-light)", textDecoration: "none" }}
+            >
+              Escríbenos por WhatsApp
+            </a>
+          </p>
+        </div>
+      </div>
+    );
+  }
+
+  // ── Página principal ──
   return (
     <div
       style={{
@@ -107,24 +224,27 @@ export default function PublicRegister() {
         }}
       >
         {step === 1 ? (
+          /* ── Paso 1: Formulario ── */
           <div>
             <div style={{ textAlign: "center", marginBottom: "2rem", display: "flex", flexDirection: "column", alignItems: "center" }}>
-              <img 
-                src="/logo.jpg?v=2" 
-                alt="StreamMaster_ve Logo" 
-                style={{ 
-                  width: "90px", 
-                  height: "90px", 
-                  borderRadius: "50%", 
-                  objectFit: "cover", 
-                  border: "2.5px solid #00C853", 
+              <img
+                src="/logo.jpg?v=2"
+                alt="StreamMaster_ve Logo"
+                style={{
+                  width: "90px",
+                  height: "90px",
+                  borderRadius: "50%",
+                  objectFit: "cover",
+                  border: "2.5px solid #00C853",
                   marginBottom: "1rem",
-                  boxShadow: "0 0 15px rgba(0, 200, 83, 0.4)"
-                }} 
+                  boxShadow: "0 0 15px rgba(0, 200, 83, 0.4)",
+                }}
               />
-              <h2 style={{ fontSize: "1.5rem", fontWeight: 800, color: "#fff", margin: 0 }}>StreamMaster_ve Quick Access</h2>
+              <h2 style={{ fontSize: "1.5rem", fontWeight: 800, color: "#fff", margin: 0 }}>
+                StreamMaster_ve
+              </h2>
               <p style={{ color: "var(--text-secondary)", fontSize: "0.875rem", marginTop: "0.25rem" }}>
-                Regístrate y obtén tu perfil de streaming asignado de inmediato.
+                Regístrate y obtén tu perfil de streaming asignado.
               </p>
             </div>
 
@@ -197,34 +317,38 @@ export default function PublicRegister() {
                     boxShadow: "0 0 20px rgba(124, 77, 255, 0.4)",
                   }}
                 >
-                  {saving ? "Asignando tu perfil..." : "🚀 Obtener Acceso Inmediato"}
+                  {saving ? "Enviando solicitud..." : "🚀 Obtener Acceso"}
                 </button>
               </div>
             </form>
           </div>
         ) : (
+          /* ── Paso 2: Confirmación ── */
           <div className="animate-fade">
             <div style={{ textAlign: "center", marginBottom: "1.5rem" }}>
-              <div style={{ fontSize: "3.5rem", marginBottom: "0.5rem" }}>⏳</div>
-              <h2 style={{ fontSize: "1.5rem", fontWeight: 800, color: "#fff" }}>¡Solicitud Recibida!</h2>
+              <div style={{ fontSize: "3.5rem", marginBottom: "0.5rem" }}>✅</div>
+              <h2 style={{ fontSize: "1.5rem", fontWeight: 800, color: "#fff" }}>
+                ¡Solicitud Recibida!
+              </h2>
               <p style={{ color: "var(--text-secondary)", fontSize: "0.875rem", marginTop: "0.5rem" }}>
-                Un administrador revisará tu solicitud y te contactará pronto por WhatsApp con tus credenciales de acceso.
+                Tu solicitud ha sido enviada. Un administrador la revisará y te enviará tus credenciales por WhatsApp.
               </p>
             </div>
 
             <div
               style={{
-                background: "rgba(10, 5, 25, 0.5)",
-                border: "1px solid rgba(255,255,255,0.06)",
+                background: "rgba(0, 200, 83, 0.08)",
+                border: "1px solid rgba(0, 200, 83, 0.25)",
                 borderRadius: "0.75rem",
                 padding: "1.25rem",
                 marginBottom: "1.5rem",
-                textAlign: "center"
+                textAlign: "center",
               }}
             >
-              <h3 style={{ color: "var(--accent-light)", marginBottom: "0.5rem" }}>¿Qué sigue?</h3>
-              <p style={{ color: "var(--text-muted)", fontSize: "0.875rem" }}>
-                Asegúrate de que el número de WhatsApp que proporcionaste sea correcto. Recibirás un mensaje con tu usuario, contraseña y perfil asignado.
+              <h3 style={{ color: "#00C853", marginBottom: "0.5rem", fontSize: "1rem" }}>¿Qué sigue?</h3>
+              <p style={{ color: "var(--text-muted)", fontSize: "0.875rem", margin: 0, lineHeight: 1.6 }}>
+                Asegúrate de que el número de WhatsApp que proporcionaste sea correcto.
+                Recibirás un mensaje con tu usuario, contraseña y perfil asignado en breve.
               </p>
             </div>
 
@@ -235,7 +359,7 @@ export default function PublicRegister() {
                 onClick={handleWhatsAppShare}
                 style={{ justifyContent: "center", padding: "0.8rem", fontWeight: 700 }}
               >
-                💬 Notificar a Soporte por WhatsApp
+                💬 Contactar a Soporte por WhatsApp
               </button>
 
               <button
@@ -245,12 +369,12 @@ export default function PublicRegister() {
                   setClientName("");
                   setClientPhone("");
                   setSelectedPlatform("");
+                  setDeviceType("phone");
                   setStep(1);
-                  setRegResult(null);
                 }}
                 style={{ justifyContent: "center", padding: "0.8rem" }}
               >
-                Solicitar Otra Cuenta
+                Registrar Otra Cuenta
               </button>
             </div>
           </div>
