@@ -7,3 +7,4 @@ export const getSubscription = (id) => api.get(`/subscriptions/${id}`);
 export const getWhatsAppLink = (id) => api.get(`/subscriptions/${id}/whatsapp`);
 export const cancelSubscription = (id) => api.patch(`/subscriptions/${id}/cancel`);
 export const deleteSubscription = (id) => api.delete(`/subscriptions/${id}`);
+export const updateSubscription = (id, data) => api.patch(`/subscriptions/${id}`, data);

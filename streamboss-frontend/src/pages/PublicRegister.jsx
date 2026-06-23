@@ -19,6 +19,7 @@ export default function PublicRegister() {
   const [clientPhone, setClientPhone] = useState("");
   const [deviceType, setDeviceType] = useState("phone");
   const [selectedPlatform, setSelectedPlatform] = useState("");
+  const [desiredPin, setDesiredPin] = useState("");
 
   const loadPlatforms = useCallback((attempt = 0) => {
     setLoading(true);
@@ -63,6 +64,7 @@ export default function PublicRegister() {
         phone_whatsapp: clientPhone || null,
         device_type: deviceType,
         platform_id: parseInt(selectedPlatform),
+        desired_pin: desiredPin.trim() || null,
       });
 
       setStep(2);
@@ -292,7 +294,7 @@ export default function PublicRegister() {
                   <select
                     className="form-control"
                     value={selectedPlatform}
-                    onChange={(e) => setSelectedPlatform(e.target.value)}
+                    onChange={(e) => { setSelectedPlatform(e.target.value); setDesiredPin(""); }}
                     required
                     style={{ background: "rgba(10, 5, 25, 0.4)", color: "#fff", borderColor: "var(--accent-main)" }}
                   >
@@ -304,6 +306,28 @@ export default function PublicRegister() {
                     ))}
                   </select>
                 </div>
+
+                {/* PIN field — only visible after picking a platform */}
+                {selectedPlatform && (
+                  <div className="form-group" style={{ animation: "fadeIn 0.25s ease" }}>
+                    <label className="form-label" style={{ color: "#fff" }}>PIN deseado para tu perfil
+                      <span style={{ marginLeft: "0.4rem", fontSize: "0.75rem", color: "var(--text-muted)", fontWeight: 400 }}>(Opcional)</span>
+                    </label>
+                    <input
+                      className="form-control"
+                      type="text"
+                      inputMode="numeric"
+                      maxLength={8}
+                      placeholder="Ej. 1234"
+                      value={desiredPin}
+                      onChange={(e) => setDesiredPin(e.target.value.replace(/\D/g, ""))}
+                      style={{ background: "rgba(10, 5, 25, 0.4)", color: "#fff", letterSpacing: "0.2rem", fontWeight: 700 }}
+                    />
+                    <p style={{ fontSize: "0.75rem", color: "var(--text-muted)", marginTop: "0.3rem", margin: "0.3rem 0 0" }}>
+                      🔒 Este PIN protegerá tu perfil. Déjalo vacío si no deseas uno.
+                    </p>
+                  </div>
+                )}
 
                 <button
                   type="submit"
@@ -370,6 +394,7 @@ export default function PublicRegister() {
                   setClientPhone("");
                   setSelectedPlatform("");
                   setDeviceType("phone");
+                  setDesiredPin("");
                   setStep(1);
                 }}
                 style={{ justifyContent: "center", padding: "0.8rem" }}

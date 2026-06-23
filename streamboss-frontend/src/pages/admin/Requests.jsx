@@ -188,6 +188,13 @@ export default function Requests() {
                       <strong>Cliente:</strong> {notesData.full_name} <br/>
                       <strong>WhatsApp:</strong> {notesData.phone_whatsapp || "N/A"} <br/>
                       <strong>Dispositivo:</strong> {DEVICE_ICONS[notesData.device_type] || "📱"} {notesData.device_type}
+                      {notesData.desired_pin && (
+                        <><br/><strong>PIN deseado:</strong>{" "}
+                          <span style={{ background: "rgba(124,77,255,0.18)", borderRadius: "4px", padding: "0.1rem 0.4rem", fontFamily: "monospace", fontWeight: 700, letterSpacing: "0.1rem" }}>
+                            {notesData.desired_pin}
+                          </span>
+                        </>
+                      )}
                     </div>
                   )}
                   <div style={{ fontSize: "0.8rem", color: "var(--text-muted)" }}>solicita un perfil de</div>

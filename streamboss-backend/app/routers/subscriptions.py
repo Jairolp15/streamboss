@@ -7,7 +7,7 @@ from app.models.profile import Profile
 from app.models.master_account import MasterAccount
 from app.models.platform import Platform
 from app.models.user import User
-from app.schemas.subscription import SubscriptionCreate, SubscriptionResponse, WhatsAppMessage
+from app.schemas.subscription import SubscriptionCreate, SubscriptionResponse, SubscriptionEdit, WhatsAppMessage
 from app.services.subscription_service import create_subscription, enrich_subscription, cancel_subscription
 from app.services.whatsapp_service import generate_whatsapp_link
 
@@ -80,6 +80,42 @@ def get_whatsapp_link(sub_id: int, db: Session = Depends(get_db), current_user: 
 @router.patch("/{sub_id}/cancel", response_model=SubscriptionResponse)
 def cancel_sub(sub_id: int, db: Session = Depends(get_db), _=Depends(require_admin)):
     sub = cancel_subscription(db, sub_id)
+    return enrich_subscription(_load(db, sub.id))
+
+
+@router.patch("/{sub_id}", response_model=SubscriptionResponse)
+def edit_sub(sub_id: int, data: SubscriptionEdit, db: Session = Depends(get_db), current_user=Depends(get_current_user)):
+    """Edit end_date, profile PIN and/or master account credentials for a subscription."""
+    from app.models.master_account import MasterAccount
+    sub = _load(db, sub_id)
+
+    # Permission check: only admin or the subscription owner
+    if current_user.role == "distributor" and sub.distributor_id != current_user.id:
+        raise HTTPException(status_code=403, detail="Acceso denegado")
+
+    # Update end_date on the subscription
+    if data.end_date is not None:
+        sub.end_date = data.end_date
+        sub.renewal_notified = False  # reset notification flag
+
+    # Update profile PIN
+    if data.profile_pin is not None:
+        profile = db.query(Profile).filter(Profile.id == sub.profile_id).first()
+        if profile:
+            profile.pin = data.profile_pin if data.profile_pin.strip() else None
+
+    # Update master account credentials
+    if data.master_email is not None or data.master_password is not None:
+        profile = db.query(Profile).filter(Profile.id == sub.profile_id).first()
+        if profile:
+            master = db.query(MasterAccount).filter(MasterAccount.id == profile.master_account_id).first()
+            if master:
+                if data.master_email is not None:
+                    master.email = data.master_email
+                if data.master_password is not None:
+                    master.password_encrypted = data.master_password
+
+    db.commit()
     return enrich_subscription(_load(db, sub.id))
 
 

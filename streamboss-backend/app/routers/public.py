@@ -16,6 +16,7 @@ class PublicRegisterRequest(BaseModel):
     phone_whatsapp: Optional[str] = None
     device_type: str
     platform_id: int
+    desired_pin: Optional[str] = None
 
 
 class PublicRequestResponse(BaseModel):
@@ -55,7 +56,8 @@ def public_submit_request(data: PublicRegisterRequest, db: Session = Depends(get
         "full_name": data.full_name,
         "phone_whatsapp": data.phone_whatsapp,
         "device_type": data.device_type,
-        "is_public_request": True
+        "is_public_request": True,
+        "desired_pin": data.desired_pin,
     }
     
     # 3. Crear el AccountRequest asociado al Administrador (ID 1)

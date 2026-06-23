@@ -15,6 +15,13 @@ class SubscriptionUpdate(BaseModel):
     status: Optional[str] = None
 
 
+class SubscriptionEdit(BaseModel):
+    end_date: Optional[date] = None
+    profile_pin: Optional[str] = None
+    master_email: Optional[str] = None
+    master_password: Optional[str] = None
+
+
 class SubscriptionResponse(BaseModel):
     id: int
     client_id: int
