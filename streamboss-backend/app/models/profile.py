@@ -11,6 +11,10 @@ class Profile(Base):
     profile_number = Column(Integer, nullable=False)  # 1..N
     pin = Column(String(10), nullable=True)
     status = Column(String(20), default="available")  # available | occupied
+    # Credenciales personalizadas por perfil (sobrescriben las de la cuenta maestra solo para este cliente)
+    custom_email = Column(String(255), nullable=True)
+    custom_password = Column(String(255), nullable=True)
 
     master_account = relationship("MasterAccount", back_populates="profiles")
     subscriptions = relationship("Subscription", back_populates="profile", cascade="all, delete-orphan")
+

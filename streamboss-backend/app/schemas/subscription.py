@@ -20,6 +20,7 @@ class SubscriptionEdit(BaseModel):
     profile_pin: Optional[str] = None
     master_email: Optional[str] = None
     master_password: Optional[str] = None
+    profile_id: Optional[int] = None  # Para cambiar el perfil asignado al cliente
 
 
 class SubscriptionResponse(BaseModel):

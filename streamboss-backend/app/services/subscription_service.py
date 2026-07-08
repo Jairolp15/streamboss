@@ -34,8 +34,9 @@ def enrich_subscription(sub: Subscription) -> dict:
         "platform_color": platform.color_hex,
         "profile_number": profile.profile_number,
         "profile_pin": profile.pin,
-        "master_email": master.email,
-        "master_password": master.password_encrypted,
+        # Usa credenciales personalizadas del perfil si existen, si no las de la cuenta maestra
+        "master_email": profile.custom_email or master.email,
+        "master_password": profile.custom_password or master.password_encrypted,
     }
 
 

@@ -42,6 +42,9 @@ export default function Subscriptions() {
   const [editEmail, setEditEmail] = useState("");
   const [editPassword, setEditPassword] = useState("");
   const [editSaving, setEditSaving] = useState(false);
+  // Fix 4: Estado para cambio de perfil en edición
+  const [editProfileId, setEditProfileId] = useState("");
+  const [editMasterAccounts, setEditMasterAccounts] = useState([]);
   // ──────────────────────────────────────────────────────────────
 
   const load = () => {
@@ -74,13 +77,21 @@ export default function Subscriptions() {
   };
 
   // ── Edit handlers ──────────────────────────────────────────────
-  const handleOpenEditModal = (sub) => {
+  const handleOpenEditModal = async (sub) => {
     setEditSub(sub);
     setEditEndDate(sub.end_date || "");
     setEditPin(sub.profile_pin || "");
     setEditEmail(sub.master_email || "");
     setEditPassword(sub.master_password || "");
+    setEditProfileId(""); // reset: no cambiar perfil por defecto
     setShowEditModal(true);
+    // Cargar cuentas maestras para mostrar perfiles disponibles
+    try {
+      const accRes = await getMasterAccounts();
+      setEditMasterAccounts(accRes.data);
+    } catch {
+      setEditMasterAccounts([]);
+    }
   };
 
   const handleSaveEdit = async (e) => {
@@ -88,12 +99,17 @@ export default function Subscriptions() {
     if (!editSub) return;
     setEditSaving(true);
     try {
-      await updateSubscription(editSub.id, {
+      const payload = {
         end_date: editEndDate || undefined,
         profile_pin: editPin !== editSub.profile_pin ? editPin : undefined,
         master_email: editEmail !== editSub.master_email ? editEmail : undefined,
         master_password: editPassword !== editSub.master_password ? editPassword : undefined,
-      });
+      };
+      // Fix 4: Si se seleccionó un nuevo perfil, incluirlo en el payload
+      if (editProfileId && parseInt(editProfileId) !== editSub.profile_id) {
+        payload.profile_id = parseInt(editProfileId);
+      }
+      await updateSubscription(editSub.id, payload);
       toast.success("✅ Suscripción actualizada");
       setShowEditModal(false);
       setEditSub(null);
@@ -471,9 +487,13 @@ export default function Subscriptions() {
 
                 {/* Credentials section */}
                 <div>
-                  <h4 style={{ fontSize: "0.9rem", fontWeight: 700, color: "var(--accent-light)", marginBottom: "0.75rem" }}>
-                    🔐 Credenciales de la Cuenta
+                  <h4 style={{ fontSize: "0.9rem", fontWeight: 700, color: "var(--accent-light)", marginBottom: "0.5rem" }}>
+                    🔐 Credenciales para este Cliente
                   </h4>
+                  <p style={{ fontSize: "0.78rem", color: "var(--text-muted)", marginBottom: "0.6rem", lineHeight: 1.5 }}>
+                    Estos valores son <strong>exclusivos para este cliente</strong>. No afectan a otros perfiles de la misma cuenta.
+                    Déjalos vacíos para usar las credenciales generales de la cuenta maestra.
+                  </p>
                   <div className="form-group" style={{ marginBottom: "0.75rem" }}>
                     <label className="form-label">Email / Usuario</label>
                     <input
@@ -523,6 +543,44 @@ export default function Subscriptions() {
                         required
                       />
                     </div>
+                  </div>
+                </div>
+
+                {/* Fix 4: Cambio de perfil / cuenta maestra */}
+                <div>
+                  <h4 style={{ fontSize: "0.9rem", fontWeight: 700, color: "var(--accent-light)", marginBottom: "0.5rem" }}>
+                    🔄 Cambiar Perfil Asignado
+                  </h4>
+                  <p style={{ fontSize: "0.78rem", color: "var(--text-muted)", marginBottom: "0.6rem", lineHeight: 1.5 }}>
+                    ⚠️ El perfil anterior quedará <strong>libre</strong> y el nuevo quedará <strong>ocupado</strong>.
+                    Solo selecciona si quieres mover al cliente a otro perfil.
+                  </p>
+                  <div className="form-group">
+                    <label className="form-label">Nuevo Perfil (Opcional)</label>
+                    <select
+                      className="form-control"
+                      value={editProfileId}
+                      onChange={(e) => setEditProfileId(e.target.value)}
+                    >
+                      <option value="">-- Mantener perfil actual #{editSub.profile_number} --</option>
+                      {editMasterAccounts
+                        .filter((acc) => acc.platform_id === editSub.profile_id || true) // mostrar todos
+                        .flatMap((acc) =>
+                          (acc.profiles || [])
+                            .filter((p) => p.status === "available")
+                            .map((p) => ({
+                              profile_id: p.id,
+                              profile_number: p.profile_number,
+                              master_email: acc.email,
+                              platform_id: acc.platform_id,
+                            }))
+                        )
+                        .map((p) => (
+                          <option key={p.profile_id} value={p.profile_id}>
+                            Perfil #{p.profile_number} — {p.master_email}
+                          </option>
+                        ))}
+                    </select>
                   </div>
                 </div>
               </div>

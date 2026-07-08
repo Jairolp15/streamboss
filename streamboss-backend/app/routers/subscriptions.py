@@ -85,7 +85,7 @@ def cancel_sub(sub_id: int, db: Session = Depends(get_db), _=Depends(require_adm
 
 @router.patch("/{sub_id}", response_model=SubscriptionResponse)
 def edit_sub(sub_id: int, data: SubscriptionEdit, db: Session = Depends(get_db), current_user=Depends(get_current_user)):
-    """Edit end_date, profile PIN and/or master account credentials for a subscription."""
+    """Edit end_date, profile PIN, master account credentials (solo para este cliente) y/o cambio de perfil."""
     from app.models.master_account import MasterAccount
     sub = _load(db, sub_id)
 
@@ -98,22 +98,45 @@ def edit_sub(sub_id: int, data: SubscriptionEdit, db: Session = Depends(get_db),
         sub.end_date = data.end_date
         sub.renewal_notified = False  # reset notification flag
 
-    # Update profile PIN
+    # ── Fix 4: Cambio de perfil ──────────────────────────────────
+    # Si se envía un nuevo profile_id distinto al actual, liberar el anterior y ocupar el nuevo
+    if data.profile_id is not None and data.profile_id != sub.profile_id:
+        old_profile = db.query(Profile).filter(Profile.id == sub.profile_id).first()
+        new_profile = db.query(Profile).filter(Profile.id == data.profile_id).first()
+
+        if not new_profile:
+            raise HTTPException(status_code=404, detail="El nuevo perfil no existe")
+        if new_profile.status == "occupied":
+            raise HTTPException(status_code=400, detail="El perfil seleccionado ya está ocupado")
+
+        # Liberar perfil anterior y limpiar sus credenciales override
+        if old_profile:
+            old_profile.status = "available"
+            old_profile.custom_email = None
+            old_profile.custom_password = None
+            old_profile.pin = None
+
+        # Ocupar nuevo perfil
+        new_profile.status = "occupied"
+        sub.profile_id = data.profile_id
+
+    # ── Fix 2: Update profile PIN — solo para este perfil/cliente ─
     if data.profile_pin is not None:
         profile = db.query(Profile).filter(Profile.id == sub.profile_id).first()
         if profile:
             profile.pin = data.profile_pin if data.profile_pin.strip() else None
 
-    # Update master account credentials
+    # ── Fix 2: Credenciales — se guardan en el perfil individual ──
+    # NO se modifica la MasterAccount para no afectar a otros clientes
     if data.master_email is not None or data.master_password is not None:
         profile = db.query(Profile).filter(Profile.id == sub.profile_id).first()
         if profile:
-            master = db.query(MasterAccount).filter(MasterAccount.id == profile.master_account_id).first()
-            if master:
-                if data.master_email is not None:
-                    master.email = data.master_email
-                if data.master_password is not None:
-                    master.password_encrypted = data.master_password
+            if data.master_email is not None:
+                # Guardar override de email en el perfil (vacío = usar el de la cuenta maestra)
+                profile.custom_email = data.master_email if data.master_email.strip() else None
+            if data.master_password is not None:
+                # Guardar override de password en el perfil (vacío = usar el de la cuenta maestra)
+                profile.custom_password = data.master_password if data.master_password.strip() else None
 
     db.commit()
     return enrich_subscription(_load(db, sub.id))

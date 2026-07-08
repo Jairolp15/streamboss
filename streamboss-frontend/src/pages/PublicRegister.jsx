@@ -2,7 +2,7 @@ import { useEffect, useState, useCallback } from "react";
 import { getPublicPlatforms, publicSubmitRequest } from "../api/public";
 import toast from "react-hot-toast";
 
-const SUPPORT_PHONE = "584261338316";
+const SUPPORT_PHONE = "584223052772";
 const MAX_RETRIES = 6;       // intentos máximos
 const RETRY_DELAY_MS = 8000; // 8 segundos entre intentos
 

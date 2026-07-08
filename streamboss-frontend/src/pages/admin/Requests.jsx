@@ -1,7 +1,7 @@
 import { useEffect, useState } from "react";
 import { getAccountRequests, resolveAccountRequest } from "../../api/accountRequests";
 import { createClient } from "../../api/clients";
-import { createSubscription } from "../../api/subscriptions";
+import { createSubscription, updateSubscription } from "../../api/subscriptions";
 import { getPlatforms } from "../../api/platforms";
 import { getMasterAccounts } from "../../api/masterAccounts";
 import PlatformBadge from "../../components/ui/PlatformBadge";
@@ -110,7 +110,19 @@ export default function Requests() {
         end_date: endDate,
       });
 
-      // 3. Resolve request
+      // 3. Fix 3: Aplicar el PIN deseado por el cliente automáticamente al perfil
+      const notesData = parseNotes(selectedRequest?.notes);
+      const desiredPin = notesData.desired_pin;
+      if (desiredPin && desiredPin.trim()) {
+        try {
+          await updateSubscription(subRes.data.id, { profile_pin: desiredPin.trim() });
+        } catch {
+          // PIN no es crítico, continuar sin bloquearse
+          console.warn("No se pudo aplicar el PIN deseado, pero la suscripción fue creada.");
+        }
+      }
+
+      // 4. Resolve request
       await resolveAccountRequest(selectedRequest.id, { status: "approved" });
 
       toast.success("Perfil asignado y solicitud aprobada con éxito");
