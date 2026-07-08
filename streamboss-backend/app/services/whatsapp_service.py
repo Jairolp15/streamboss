@@ -36,7 +36,9 @@ def generate_whatsapp_link(
                 f"*Perfil:* Perfil #{profile_number}\n"
                 f"*PIN:* {profile_pin or 'Sin PIN'}\n"
                 f"*Vence en:* {days_remaining} dias\n\n"
-                f"¡Que disfrutes tu pantalla!"
+                f"⚠️ *IMPORTANTE:* No cambies la contraseña de tu perfil. Hacerlo puede causar la pérdida de tu acceso y quedará sin garantía de soporte.\n\n"
+                f"📱 Este acceso es exclusivo para un solo dispositivo. No compartas tus credenciales ni inicies sesión en otro equipo.\n\n"
+                f"¡Que disfrutes tu pantalla! 🎬"
             )
     else:
         day_word = "dia" if days_remaining == 1 else "dias"
